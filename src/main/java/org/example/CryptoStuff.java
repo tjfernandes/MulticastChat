@@ -55,7 +55,6 @@ public class CryptoStuff {
                     cipher.init(cipherMode, key, ivSpec);
                     break;
                 case "RC4", "CHACHA-20":
-                    Cipher.getInstance(SecurityProperties.CONFIDENTIALITY, "BC");
                     cipher.init(cipherMode, key);
                     break;
             }

@@ -167,8 +167,8 @@ The configuration file can express different definitions, including:
 
 FILE: security.conf
 -------------------------------------
-CONFIDENTIALITY: AES/GCM/NoPadding or AES/CTR/NoPadding or AES/CBC/PKCS5Padding or Blowfish/CBC/PKCS5Padidng
-                 or RC6/CCM/NoPdding or RC4 or CHACHA-20
+CONFIDENTIALITY: AES/GCM/NoPadding or AES/CTR/NoPadding or AES/CBC/PKCS5Padding or Blowfish/CBC/PKCS5Padding
+                 or RC6/CCM/NoPadding or RC4 or CHACHA-20
 CONDIFENTIALITY-KEY: <a valid key expressed in hexadecimal for any CONFIDENTIALITY configuration
 IV: < valid IV expressed in hexadecimal for any CONFIDENTILAITY configurations, except for stream cipers (RC4 or CHACHA-20
 HASHFORNICKNAMES: SHA256 or SHA384 or SHA512
