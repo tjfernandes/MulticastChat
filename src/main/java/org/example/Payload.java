@@ -48,29 +48,18 @@ public class Payload implements Serializable {
         return message;
     }
 
-    public byte[] serialize() throws IOException{
+    public byte[] serialize() throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        DataOutputStream out = new DataOutputStream(bos);
-
-        out.writeUTF(senderName);
-        out.writeInt(type);
-        out.writeLong(nonce);
-        out.writeUTF(message);
-
-        out.close();
+        ObjectOutputStream oos = new ObjectOutputStream(bos);
+        oos.writeObject(this);
+        oos.close();
         return bos.toByteArray();
     }
 
-    public static Payload deserialize(byte[] payloadBytes) throws IOException {
+    public static Payload deserialize(byte[] payloadBytes) throws IOException, ClassNotFoundException {
         ByteArrayInputStream bis = new ByteArrayInputStream(payloadBytes);
-        DataInputStream in = new DataInputStream(bis);
-
-        String senderName = in.readUTF();
-        int type = in.readInt();
-        long nonce = in.readLong();
-        String message = in.readUTF();
-
-        return new Payload(senderName, type, nonce, message);
+        ObjectInputStream ois = new ObjectInputStream(bis);
+        return (Payload) ois.readObject();
     }
 
 

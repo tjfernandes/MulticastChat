@@ -2,13 +2,9 @@ package org.example;
 
 import java.io.*;
 import java.net.DatagramPacket;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.Key;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.SecureRandom;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
+import java.security.*;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -200,11 +196,47 @@ public class Utils
         return Payload.deserialize(decryptedPayload);
     }
 
-    public static Payload processPacketAndGetPayload(DatagramPacket packet, Key macKey, String macAlgorithm, Key key, Map<String, Set<Long>> nonceCache, String algorithm) throws IOException, ClassNotFoundException, NoSuchAlgorithmException, InvalidKeyException, InvalidAlgorithmParameterException, CryptoException, NoSuchProviderException {
+    public static void processSendPacket(int type, String message, String username, InetAddress group, MulticastSocket msocket) throws InvalidAlgorithmParameterException, IOException, CryptoException, InvalidKeyException, NoSuchAlgorithmException, NoSuchProviderException, SignatureException {
+        ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+        DataOutputStream dataStream = new DataOutputStream(byteStream);
+
+        String hashedUsername = Utils.hashString(username, SecurityProperties.HASHFORNICKNAMES);
+        ControlHeader controlHeader = new ControlHeader(SecureMulticastChat.VERSION, SecureMulticastChat.CHAT_MAGIC_NUMBER, hashedUsername);
+
+        Long nonce = Utils.generateNonce();
+
+        // Signature
+        SignatureData signatureObject = new SignatureData(controlHeader, username, type, nonce, message);
+        PrivateKey privateKey = CryptoStuff.getInstance().getPrivateKey();
+        Signature signature = Signature.getInstance(SecurityProperties.SIGNATURE); // Change to the appropriate algorithm
+        signature.initSign(privateKey);
+        signature.update(signatureObject.serialize());
+        byte[] digitalSignature = signature.sign();
+
+        Payload payload = new Payload(username, type, nonce, message);
+
+        byte[] encryptedPayload = Utils.getEncryptPayload(SecurityProperties.CONFIDENTIALITY_KEY, payload, SecurityProperties.CONFIDENTIALITY);
+
+        byte[] hMacProof = Utils.generateHmac(SecurityProperties.MACKEY, controlHeader, encryptedPayload, SecurityProperties.MACALGORITHM);
+
+        SMP4PGMSPacket smp4pgmsPacket = new SMP4PGMSPacket(controlHeader, digitalSignature, encryptedPayload, hMacProof);
+
+        Utils.writePacket(dataStream, smp4pgmsPacket);
+
+        dataStream.close();
+
+        byte[] data = byteStream.toByteArray();
+        DatagramPacket packet = new DatagramPacket(data, data.length, group,
+                msocket.getLocalPort());
+        msocket.send(packet);
+    }
+
+    public static Payload processPacketAndGetPayload(DatagramPacket packet, Key macKey, String macAlgorithm, Key key, Map<String, Set<Long>> nonceCache, String algorithm) throws IOException, ClassNotFoundException, NoSuchAlgorithmException, InvalidKeyException, InvalidAlgorithmParameterException, CryptoException, NoSuchProviderException, SignatureException {
         DataInputStream istream = new DataInputStream(new ByteArrayInputStream(packet.getData(), packet.getOffset(), packet.getLength()));
 
         SMP4PGMSPacket smp4pgmsPacket = SMP4PGMSPacket.deserialize(istream.readAllBytes());
         ControlHeader controlHeader = smp4pgmsPacket.getControlHeader();
+
         byte[] encryptedPayload = smp4pgmsPacket.getEncryptedPayload();
 
         byte[] hMacReceived = smp4pgmsPacket.getHMac();
@@ -216,9 +248,25 @@ public class Utils
         }
 
         Payload decryptedPayload = getDecryptedPayload(key, encryptedPayload, algorithm);
-        Long receivedNonce = decryptedPayload.getNonce();
 
         String senderName = decryptedPayload.getSenderName();
+        Long receivedNonce = decryptedPayload.getNonce();
+        int type = decryptedPayload.getType();
+        String message = decryptedPayload.getMessage();
+
+
+        byte[] receivedDigitalSignature = smp4pgmsPacket.getDigitalSignature();
+        SignatureData sigData = new SignatureData(controlHeader, senderName, type, receivedNonce, message);
+        Signature signature = Signature.getInstance(SecurityProperties.SIGNATURE); // Change to the appropriate algorithm
+        PublicKey publicKey= CryptoStuff.getInstance().getSenderPublicKey(senderName);
+        signature.initVerify(publicKey);
+        signature.update(sigData.serialize());
+
+        if (!signature.verify(receivedDigitalSignature)) {
+            System.out.println("WARNING: It's not who you think it is!");
+            return null;
+        }
+
 
         Set<Long> senderNonces = nonceCache.computeIfAbsent(senderName, k -> new ConcurrentSkipListSet<>());
 
@@ -236,6 +284,17 @@ public class Utils
 
         return decryptedPayload;
     }
+
+    public static String hexToString(String hex) {
+        StringBuilder output = new StringBuilder();
+        for (int i = 0; i < hex.length(); i += 2) {
+            String str = hex.substring(i, i + 2);
+            output.append((char) Integer.parseInt(str, 16));
+        }
+        return output.toString();
+    }
+
+
 
 
 }

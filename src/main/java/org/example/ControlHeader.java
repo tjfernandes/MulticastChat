@@ -27,24 +27,22 @@ public class ControlHeader implements Serializable {
 
     public byte[] serialize() throws IOException{
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        DataOutputStream out = new DataOutputStream(bos);
-
-        out.writeInt(version);
-        out.writeLong(magic);
-        out.writeUTF(hashedSenderName);
-
+        ObjectOutputStream out = new ObjectOutputStream(bos);
+        out.writeObject(this);
         out.close();
         return bos.toByteArray();
     }
 
-    public static ControlHeader deserialize(byte[] controlHeaderBytes) throws IOException {
-        ByteArrayInputStream bis = new ByteArrayInputStream(controlHeaderBytes);
-        DataInputStream in = new DataInputStream(bis);
-
-        int version = in.readInt();
-        long magic = in.readLong();
-        String hashedSenderName = in.readUTF();
-
-        return new ControlHeader(version, magic, hashedSenderName);
+    public static ControlHeader deserialize(byte[] controlHeaderBytes) {
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(controlHeaderBytes);
+        ObjectInputStream objectInputStream = null;
+        ControlHeader controlHeader = null;
+        try {
+            objectInputStream = new ObjectInputStream(byteArrayInputStream);
+            controlHeader = (ControlHeader) objectInputStream.readObject();
+        } catch(IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        return controlHeader;
     }
 }

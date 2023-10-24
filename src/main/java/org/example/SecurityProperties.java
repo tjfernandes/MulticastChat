@@ -1,6 +1,7 @@
 package org.example;
 
 import javax.crypto.spec.SecretKeySpec;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,6 +15,7 @@ public class SecurityProperties {
     public static String HASHFORNICKNAMES;
     public static Key MACKEY;
     public static String MACALGORITHM;
+    public static String SIGNATURE;
 
     public SecurityProperties() {
         Properties properties = new Properties();
@@ -41,5 +43,6 @@ public class SecurityProperties {
         HASHFORNICKNAMES = properties.getProperty("HASHFORNICKNAMES");
         MACALGORITHM = properties.getProperty("MACALGORITHM");
         MACKEY = new SecretKeySpec(properties.getProperty("MACKEY").getBytes(), MACALGORITHM);
+        SIGNATURE = properties.getProperty("SIGNATURE");
     }
 }

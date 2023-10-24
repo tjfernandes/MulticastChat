@@ -10,15 +10,9 @@ package org.example;// MulticastChat.java
 import java.io.*;
 import java.net.*;
 import java.security.*;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListSet;
-
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 
 public class SecureMulticastChat extends Thread {
 
@@ -38,7 +32,7 @@ public class SecureMulticastChat extends Thread {
     public static final int DEFAULT_SOCKET_TIMEOUT_MILLIS = 5000;
 
     // Version of SecureMulticastChat
-    private static final int VERSION = 1;
+    public static final int VERSION = 1;
 
     // Security properties
     public static SecurityProperties properties;
@@ -50,7 +44,7 @@ public class SecureMulticastChat extends Thread {
     protected MulticastSocket msocket;
 
     // Username / User-Nick-Name in Chat
-    protected String username;
+    protected static String username;
 
     // Grupo IP Multicast used
     protected InetAddress group;
@@ -95,7 +89,7 @@ public class SecureMulticastChat extends Thread {
      * @throws InvalidAlgorithmParameterException
      */
 
-    public void terminate() throws IOException, InvalidKeyException, NoSuchAlgorithmException, CryptoException, InvalidAlgorithmParameterException, NoSuchProviderException {
+    public void terminate() throws IOException, InvalidKeyException, NoSuchAlgorithmException, CryptoException, InvalidAlgorithmParameterException, NoSuchProviderException, SignatureException {
         isActive = false;
         sendLeave();
     }
@@ -108,8 +102,8 @@ public class SecureMulticastChat extends Thread {
 
     // Send a JOIN message
     //
-    protected void sendJoin() throws IOException, InvalidKeyException, NoSuchAlgorithmException, CryptoException, InvalidAlgorithmParameterException, NoSuchProviderException {
-        processSendPacket(JOIN, "");
+    protected void sendJoin() throws IOException, InvalidKeyException, NoSuchAlgorithmException, CryptoException, InvalidAlgorithmParameterException, NoSuchProviderException, SignatureException {
+        Utils.processSendPacket(JOIN, "", username, group, msocket);
     }
 
     // Process recived JOIN message
@@ -124,8 +118,8 @@ public class SecureMulticastChat extends Thread {
     }
 
     // Send LEAVE
-    protected void sendLeave() throws IOException, CryptoException, InvalidKeyException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchProviderException {
-        processSendPacket(LEAVE, "");
+    protected void sendLeave() throws IOException, CryptoException, InvalidKeyException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchProviderException, SignatureException {
+        Utils.processSendPacket(LEAVE, "", username, group, msocket);
     }
 
     // Processes a multicast chat LEAVE and notifies listeners
@@ -141,8 +135,8 @@ public class SecureMulticastChat extends Thread {
 
     // Send message to the chat-messaging room
     //
-    public void sendMessage(String message) throws IOException, CryptoException, InvalidKeyException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchProviderException {
-        processSendPacket(MESSAGE, message);
+    public void sendMessage(String message) throws IOException, CryptoException, InvalidKeyException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchProviderException, SignatureException {
+        Utils.processSendPacket(MESSAGE, message, username, group, msocket);
     }
 
     // Process a received message //
@@ -155,33 +149,6 @@ public class SecureMulticastChat extends Thread {
             listener.chatMessageReceived(username, address, port, message);
         } catch (Throwable e) {
         }
-    }
-
-    private void processSendPacket(int type, String message) throws InvalidAlgorithmParameterException, IOException, CryptoException, InvalidKeyException, NoSuchAlgorithmException, NoSuchProviderException {
-        ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-        DataOutputStream dataStream = new DataOutputStream(byteStream);
-
-        String hashedUsername = Utils.hashString(username, SecurityProperties.HASHFORNICKNAMES);
-        ControlHeader controlHeader = new ControlHeader(SecureMulticastChat.VERSION, SecureMulticastChat.CHAT_MAGIC_NUMBER, hashedUsername);
-
-        Long nonce = Utils.generateNonce();
-
-        Payload payload = new Payload(username, type, nonce, message);
-
-        byte[] encryptedPayload = Utils.getEncryptPayload(SecurityProperties.CONFIDENTIALITY_KEY, payload, SecurityProperties.CONFIDENTIALITY);
-
-        byte[] hMacProof = Utils.generateHmac(SecurityProperties.MACKEY, controlHeader, encryptedPayload, SecurityProperties.MACALGORITHM);
-
-        SMP4PGMSPacket smp4pgmsPacket = new SMP4PGMSPacket(controlHeader, encryptedPayload, hMacProof);
-
-        Utils.writePacket(dataStream, smp4pgmsPacket);
-
-        dataStream.close();
-
-        byte[] data = byteStream.toByteArray();
-        DatagramPacket packet = new DatagramPacket(data, data.length, group,
-                msocket.getLocalPort());
-        msocket.send(packet);
     }
 
     // Loop:

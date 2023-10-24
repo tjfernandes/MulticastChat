@@ -199,10 +199,10 @@ IV: < valid IV expressed in hexadecimal for any CONFIDENTILAITY configurations, 
 HASHFORNICKNAMES: SHA256 or SHA384 or SHA512
 MACKEY <a MAC KEY with 256 bits, expressed in hexadecimal>
 MACALGORITHM: HMAC-SHA256 or HMAC-SHA384 or HMAC-SHA512 or
-SIGNATURE: SHA256withRSA/PSS or SHA512/ECDSA
+SIGNATURE: SHA256withRSA/PSS or SHA512withECDSA
 -------------------------------------
 
-Obs) for SHA512/ECDSA you can use any valid Eliptic Curve, ex: secp256r1
+Obs) for SHA512withECDSA you can use any valid Eliptic Curve, ex: secp256r1
 
 Now, you must have an additional configuration file (pre-instaled in all correct users), where all
 he public keys are pre-registered /you can do it manually). The format for this second configuration file
@@ -218,7 +218,7 @@ Example for the case of Alice entry:
 
 alice: nickname
 hahednickname: SHA256(alice) expressed in hexadecimal
-alicepublickey:ECCDSA - Elliptinc curce public key for alice experssed in hexadecimal
+alicepublickey:ECDSA - Elliptic curce public key for alice experssed in hexadecimal
 alg: ECDSA
 
 Of course that users can have diffrent public keys and algorithms for demonstrations involving
